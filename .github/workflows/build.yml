@@ -1,0 +1,44 @@
+name: Build Unsigned iOS IPA
+on:
+  workflow_dispatch: # Позволяет запускать сборку вручную кнопкой
+
+jobs:
+  build:
+    runs-on: macos-latest # Берем виртуальный Макбук в облаке!
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Install Flet and tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install flet
+
+      - name: Flet Build iOS (No Codesign)
+        run: |
+          flet build ios --no-codesign
+
+      - name: Package to Unsigned IPA for AltStore
+        run: |
+          mkdir Payload
+          # Ищем скомпилированное приложение .app и копируем его в папку Payload
+          APP_PATH=$(find build -name "Runner.app" -type d | head -n 1)
+          cp -r "$APP_PATH" Payload/
+          # Архивируем папку Payload в формат .ipa, который понимает AltStore
+          zip -r CyberApp.ipa Payload
+          
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CyberApp-Unsigned-IPA
+          path: CyberApp.ipa
