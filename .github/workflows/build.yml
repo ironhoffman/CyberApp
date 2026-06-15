@@ -1,10 +1,12 @@
 name: Build Unsigned iOS IPA
+
 on:
-  workflow_dispatch: # Позволяет запускать сборку вручную кнопкой
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: macos-latest # Берем виртуальный Макбук в облаке!
+    runs-on: macos-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -12,41 +14,53 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.41.7' # ЖЕСТКО УКАЗЫВАЕМ ВЕРСИЮ, КОТОРУЮ ТРЕБУЕТ FLET
+          flutter-version: "3.41.7"
 
-      - name: Install Flet and tools
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install flet
 
-      - name: Flet Prepare Project (Generate Flutter files)
+      - name: Generate Flet Flutter project
         run: |
-          # Flet соберет зависимости Python и развернет проект в build/flutter.
-          # Команда выдаст ошибку Xcode в конце, поэтому добавляем '|| echo', 
-          # чтобы GitHub Actions не падал — нам нужен только сгенерированный шаблон!
-          flet build ipa --yes || echo "Flet подготовил проект (ошибку подписи Xcode игнорируем)"
+          flet build ipa --yes || true
 
-      - name: Build Unsigned iOS App via Flutter
+      - name: Build iOS app without signing
         run: |
-          # Прыгаем внутрь сгенерированного Flet-ом Flutter-проекта
           cd build/flutter
-          # Собираем чистое НЕПОДПИСАННОЕ приложение для реального iPhone (iphoneos)
-          flutter build ios --no-codesign --release
+          flutter pub get
+          flutter build ios --release --no-codesign
 
-      - name: Package to Unsigned IPA for AltStore
+      - name: Debug build output
         run: |
-          mkdir Payload
-          # Копируем скомпилированное приложение .app из подпапки сборки напрямую в Payload
-          cp -r build/flutter/build/ios/iphoneos/Runner.app Payload/
-          # Архивируем папку Payload в формат .ipa, который понимает AltStore
-          zip -r CyberApp.ipa Payload
-          
-      - name: Upload Artifact
+          echo "Searching for .app files..."
+          find build -name "*.app"
+
+      - name: Package IPA
+        run: |
+          mkdir -p Payload
+
+          APP_PATH=$(find build -name "*.app" | head -n 1)
+
+          if [ -z "$APP_PATH" ]; then
+            echo "No .app file found!"
+            exit 1
+          fi
+
+          echo "Found app: $APP_PATH"
+
+          cp -R "$APP_PATH" Payload/
+
+          cd Payload
+          zip -r ../CyberApp.ipa .
+          cd ..
+
+      - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
           name: CyberApp-Unsigned-IPA
