@@ -26,7 +26,7 @@ jobs:
 
       - name: Flet Build iOS (No Codesign)
         run: |
-          flet build ios --no-codesign
+          flet build ipa --flutter-build-args="--no-codesign"
 
       - name: Package to Unsigned IPA for AltStore
         run: |
