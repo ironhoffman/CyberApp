@@ -24,16 +24,25 @@ jobs:
           python -m pip install --upgrade pip
           pip install flet
 
-      - name: Flet Build iOS (No Codesign)
+      - name: Flet Prepare Project (Generate Flutter files)
         run: |
-          flet build ipa --yes --flutter-build-args="--no-codesign" # ДОБАВИЛИ --yes ДЛЯ АВТО-ОТВЕТА
+          # Flet соберет зависимости Python и развернет проект в build/flutter.
+          # Команда выдаст ошибку Xcode в конце, поэтому добавляем '|| echo', 
+          # чтобы GitHub Actions не падал — нам нужен только сгенерированный шаблон!
+          flet build ipa --yes || echo "Flet подготовил проект (ошибку подписи Xcode игнорируем)"
+
+      - name: Build Unsigned iOS App via Flutter
+        run: |
+          # Прыгаем внутрь сгенерированного Flet-ом Flutter-проекта
+          cd build/flutter
+          # Собираем чистое НЕПОДПИСАННОЕ приложение для реального iPhone (iphoneos)
+          flutter build ios --no-codesign --release
 
       - name: Package to Unsigned IPA for AltStore
         run: |
           mkdir Payload
-          # Ищем скомпилированное приложение .app и копируем его в папку Payload
-          APP_PATH=$(find build -name "Runner.app" -type d | head -n 1)
-          cp -r "$APP_PATH" Payload/
+          # Копируем скомпилированное приложение .app из подпапки сборки напрямую в Payload
+          cp -r build/flutter/build/ios/iphoneos/Runner.app Payload/
           # Архивируем папку Payload в формат .ipa, который понимает AltStore
           zip -r CyberApp.ipa Payload
           
