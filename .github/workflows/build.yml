@@ -17,7 +17,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: 'stable'
+          flutter-version: '3.41.7' # ЖЕСТКО УКАЗЫВАЕМ ВЕРСИЮ, КОТОРУЮ ТРЕБУЕТ FLET
 
       - name: Install Flet and tools
         run: |
@@ -26,7 +26,7 @@ jobs:
 
       - name: Flet Build iOS (No Codesign)
         run: |
-          flet build ipa --flutter-build-args="--no-codesign"
+          flet build ipa --yes --flutter-build-args="--no-codesign" # ДОБАВИЛИ --yes ДЛЯ АВТО-ОТВЕТА
 
       - name: Package to Unsigned IPA for AltStore
         run: |
